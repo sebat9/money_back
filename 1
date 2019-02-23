@@ -1,0 +1,36 @@
+--функция расчета сдачи для PostgreSQL
+--входящие данные:
+--delivery - сумма сдачи которую надо выдать
+--coin_catalog - таблица с полями money_rating (номинал монет) и money_inventory (количество монет для выдачи)
+
+create or replace function money_back(delivery int)
+returns table (coin_rating int, coin_inventory int) as
+
+$$
+
+begin
+
+for coin_rating, coin_inventory in 
+select money_rating, money_inventory 
+from coin_catalog 
+order by money_rating desc
+
+loop
+
+coin_inventory = delivery/coin_rating;
+
+if coin_inventory <= (select money_inventory from coin_catalog where money_rating = coin_rating) --проверка наличия монет требуемого номинала
+then
+delivery = delivery - (coin_rating*coin_inventory);
+return next;
+
+else --усли монет недостаточно, то будет выдано сколько есть
+coin_inventory = (select money_inventory from coin_catalog where money_rating = coin_rating);
+delivery = delivery - (coin_rating*coin_inventory);
+return next;
+
+end if;
+end loop;
+end;
+$$
+language plpgsql;
